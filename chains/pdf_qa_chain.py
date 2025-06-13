@@ -1,46 +1,33 @@
 from langchain_community.vectorstores import FAISS, Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.llms import Ollama
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langsmith import traceable
 
 @traceable(name="PDF QA Chain")
-def build_pdf_qa_chain(chunks):
+def build_pdf_qa_chain(chunks, backend="OpenAI"):
     print(f"✅ Raw chunks received: {len(chunks)}")
 
     if not chunks or all(c.page_content.strip() == "" for c in chunks):
         for i, c in enumerate(chunks):
             print(f"Chunk {i+1} content preview: {repr(c.page_content[:100])}")
-        raise ValueError("❌ No valid content chunks found after splitting. Cannot build FAISS index.")
+        raise ValueError("❌ No valid content chunks found after splitting. Cannot build vector index.")
 
-    embeddings = OpenAIEmbeddings()
-    # vectorstore = Chroma.from_documents(chunks, embedding=embeddings, persist_directory="chroma_store")
-    # retriever = vectorstore.as_retriever(search_kwargs={"k": 2}) if wanted to use chromadb.
+    # 🔁 Embedding + LLM backend toggle
+    if backend == "OpenAI":
+        embeddings = OpenAIEmbeddings()
+        llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+    else:
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        llm = Ollama(model="mistral")
+
+    # 🧠 Use FAISS for in-memory or switch to Chroma (optional)
     vectorstore = FAISS.from_documents(chunks, embeddings)
     retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
 
-    # # ✅ Use "question" not "query"
-    # prompt = PromptTemplate(
-    #     input_variables=["question", "context"],
-    #     template="""
-    # You are an Amazon interview coach. Use ONLY the following context to give a **detailed, structured, and interview-ready** answer to the question.
-    #
-    # ### CONTEXT:
-    # {context}
-    #
-    # ### QUESTION:
-    # {question}
-    #
-    # ### FORMAT:
-    # - Start with a 1-line summary.
-    # - Provide a detailed explanation with examples.
-    # - Break down the principle into behavior patterns or sub-points.
-    # - If the principle has an Amazon-specific interpretation, include that.
-    # - If there's not enough data in context, say: "Not enough information."
-    #
-    # ### DETAILED ANSWER:
-    # """
-    # )
+    # 🔮 Smart prompt for dynamic domain answers
     prompt = PromptTemplate(
         input_variables=["question", "context"],
         template="""
@@ -62,7 +49,6 @@ def build_pdf_qa_chain(chunks):
     ### ANSWER:
     """
     )
-    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
 
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
