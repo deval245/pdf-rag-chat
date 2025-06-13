@@ -3,11 +3,8 @@ import streamlit as st
 from dotenv import load_dotenv
 from utils.pdf_loader import load_and_split_pdf
 from chains.pdf_qa_chain import build_pdf_qa_chain
-import streamlit as st
 
-
-# Load environment variables
-# Load environment variables (locally or from Streamlit secrets)
+# Load environment variables (for local or Streamlit secrets)
 if "OPENAI_API_KEY" in st.secrets:
     os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
     os.environ["LANGCHAIN_API_KEY"] = st.secrets["LANGCHAIN_API_KEY"]
@@ -16,16 +13,19 @@ if "OPENAI_API_KEY" in st.secrets:
 else:
     load_dotenv()
 
-# Streamlit App Settings
+# Streamlit config
 st.set_page_config(page_title="Chat with Your PDF", layout="centered")
 st.title("📄 Chat with Your PDF (LangChain + LangSmith)")
 
 # Upload PDF
 uploaded_file = st.file_uploader("📤 Upload a PDF file", type=["pdf"])
 if uploaded_file:
-    file_path = f"data/{uploaded_file.name}"
+    os.makedirs("data", exist_ok=True)  # ✅ Safe for Streamlit Cloud & local
+    file_path = os.path.join("data", uploaded_file.name)
+
     with open(file_path, "wb") as f:
         f.write(uploaded_file.read())
+
     st.success("✅ PDF uploaded and saved!")
 
     with st.spinner("⏳ Processing and indexing PDF..."):
@@ -33,26 +33,19 @@ if uploaded_file:
         st.write(f"✅ {len(chunks)} chunks after splitting and filtering")
         qa_chain = build_pdf_qa_chain(chunks)
 
-    # Question input
-    query = st.text_input("❓ Ask a question from the PDF:")
-    if query:
+    # Ask question
+    question = st.text_input("❓ Ask a question from the PDF:")
+    if question:
         with st.spinner("🧠 Thinking..."):
-            # DEBUG: Show what's being sent to the LLM
-            st.write("🔍 Sending to LLM:", {"query": query})
+            result = qa_chain.invoke({"query": question})  # Keep `"query"` as expected
 
-            # Call the chain (IMPORTANT: match expected input key)
-            result = qa_chain.invoke({"query": query})
-
-            # Final Answer
             st.markdown(f"### ✅ **Answer:**\n{result['result']}")
 
-            # Show sources
             st.markdown("### 📚 Source Chunks:")
             for i, doc in enumerate(result['source_documents']):
                 st.markdown(f"**Source {i+1}:**")
                 st.code(doc.page_content[:300] + "...")
 
-            # Debug: Show full retrieved chunks
             st.markdown("### 🧩 Retrieved Chunks (Debug View):")
             for i, doc in enumerate(result['source_documents']):
                 st.markdown(f"**Chunk {i+1}:**")
