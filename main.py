@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from utils.pdf_loader import load_and_split_pdf
 from chains.pdf_qa_chain import build_pdf_qa_chain
 
+
+
 # Load environment variables (for local or Streamlit secrets)
 if "OPENAI_API_KEY" in st.secrets:
     os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
