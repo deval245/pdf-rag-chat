@@ -3,9 +3,18 @@ import streamlit as st
 from dotenv import load_dotenv
 from utils.pdf_loader import load_and_split_pdf
 from chains.pdf_qa_chain import build_pdf_qa_chain
+import streamlit as st
+
 
 # Load environment variables
-load_dotenv()
+# Load environment variables (locally or from Streamlit secrets)
+if "OPENAI_API_KEY" in st.secrets:
+    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+    os.environ["LANGCHAIN_API_KEY"] = st.secrets["LANGCHAIN_API_KEY"]
+    os.environ["LANGCHAIN_PROJECT"] = st.secrets["LANGCHAIN_PROJECT"]
+    os.environ["LANGCHAIN_TRACING_V2"] = st.secrets["LANGCHAIN_TRACING_V2"]
+else:
+    load_dotenv()
 
 # Streamlit App Settings
 st.set_page_config(page_title="Chat with Your PDF", layout="centered")
