@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+*.env
+
+# Streamlit cache
+.streamlit/
+*.streamlit
+
+# Local runtime
+*.log
+*.sqlite3
+
+# Data uploads
+/data/*
+!data/.gitkeep  # keep empty folder tracked
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+
+# Test outputs
+htmlcov/
+coverage.xml
+*.cover
