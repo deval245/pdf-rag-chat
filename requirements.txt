@@ -1,0 +1,14 @@
+langchain
+langchain-community
+langchain-openai
+openai
+faiss-cpu
+python-dotenv
+streamlit
+PyMuPDF
+unstructured
+unstructured[all-docs]
+pdfminer.six
+pi-heif
+tiktoken
+numpy==1.26.4
