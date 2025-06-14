@@ -15,13 +15,21 @@ def build_pdf_qa_chain(chunks, backend="OpenAI"):
             print(f"Chunk {i+1} content preview: {repr(c.page_content[:100])}")
         raise ValueError("❌ No valid content chunks found after splitting.")
 
-    # Embeddings + LLM based on selected backend
+    # Embeddings + LLM backend logic
     if backend == "OpenAI":
         embeddings = OpenAIEmbeddings()
         llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+
+    elif backend == "Ollama":
+        try:
+            embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+            llm = Ollama(model="mistral")
+        except ImportError:
+            raise ImportError(
+                "❌ Could not import required packages for Ollama. Please run: pip install sentence-transformers"
+            )
     else:
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        llm = Ollama(model="mistral")
+        raise ValueError(f"❌ Unsupported backend: {backend}")
 
     vectorstore = FAISS.from_documents(chunks, embeddings)
     retriever = vectorstore.as_retriever(search_kwargs={"k": 2})

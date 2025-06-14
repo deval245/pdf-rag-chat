@@ -1,11 +1,11 @@
+streamlit
 langchain
 langchain-community
 langchain-openai
 openai
-faiss-cpu
 python-dotenv
-streamlit
 PyMuPDF
-unstructured[all-docs]
+faiss-cpu
 tiktoken
+unstructured
 sentence-transformers
