@@ -1,17 +1,18 @@
-# main.py
+import streamlit as st
+st.set_page_config(page_title="Chat with Your PDF", layout="centered")
 
 import os
-import streamlit as st
-from utils.env_loader import load_environment
+from utils.env_loader import load_environment, safe_get_env
 from utils.pdf_loader import load_and_split_pdf
 from chains.pdf_qa_chain import build_pdf_qa_chain
 
-# 🌍 Detect environment
-is_cloud = not os.path.exists(".env")
-if not is_cloud:
-    load_environment()
+# 🌐 Detect environment
+def is_streamlit_cloud():
+    return "streamlit" in os.getenv("HOME", "").lower()
 
-# 🔐 Prompt for OpenAI and LangSmith API keys if running on Streamlit Cloud
+is_cloud = is_streamlit_cloud()
+
+# 🔐 Secure credentials for Streamlit Cloud
 if is_cloud:
     openai_key = st.text_input("🔑 Enter your OpenAI API key:", type="password")
     langsmith_key = st.text_input("🔑 Enter your LangSmith API key:", type="password")
@@ -22,16 +23,19 @@ if is_cloud:
 
     os.environ["OPENAI_API_KEY"] = openai_key
     os.environ["LANGCHAIN_API_KEY"] = langsmith_key
+else:
+    load_environment()
 
-# Streamlit config
-st.set_page_config(page_title="Chat with Your PDF", layout="centered")
-st.title("📄 Chat with Your PDF (LangChain + LangSmith)")
-
-# Backend toggle (Ollama disabled on Streamlit Cloud)
-backend_options = ["OpenAI"] if is_cloud else ["OpenAI", "Ollama"]
+# 🧠 Backend toggle
+backend_options = ["OpenAI"]
+if not is_cloud:
+    backend_options.append("Ollama")
 backend = st.selectbox("🧠 Choose backend:", backend_options)
 
-# Upload PDF
+# 🧾 UI
+st.title("📄 Chat with Your PDF (LangChain + LangSmith)")
+
+# 📤 PDF upload
 uploaded_file = st.file_uploader("📤 Upload a PDF file", type=["pdf"])
 if uploaded_file:
     os.makedirs("data", exist_ok=True)
@@ -41,13 +45,9 @@ if uploaded_file:
     st.success("✅ PDF uploaded and saved!")
 
     with st.spinner("⏳ Processing and indexing PDF..."):
-        try:
-            chunks = load_and_split_pdf(file_path)
-            st.write(f"✅ {len(chunks)} chunks after splitting and filtering")
-            qa_chain = build_pdf_qa_chain(chunks, backend=backend)
-        except Exception as e:
-            st.error(f"❌ Failed to prepare QA chain: {e}")
-            st.stop()
+        chunks = load_and_split_pdf(file_path)
+        st.write(f"✅ {len(chunks)} chunks after splitting and filtering")
+        qa_chain = build_pdf_qa_chain(chunks, backend=backend)
 
     question = st.text_input("❓ Ask a question from the PDF:")
     if question:
