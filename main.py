@@ -5,14 +5,11 @@ from utils.env_loader import load_environment, safe_get_env
 from utils.pdf_loader import load_and_split_any_file
 from chains.pdf_qa_chain import build_pdf_qa_chain
 
-# Must be the first Streamlit command
+# ✅ Must come first
 st.set_page_config(page_title="Chat with Your Document", layout="centered")
 
-# 🌐 Detect environment
-def is_streamlit_cloud():
-    return "streamlit" in os.getenv("HOME", "").lower()
-
-is_cloud = is_streamlit_cloud()
+# ✅ More reliable Streamlit Cloud detection
+is_cloud = not os.path.exists(".env") and "streamlit" in st.__file__.lower()
 
 # 🔐 Secure credentials for Streamlit Cloud
 if is_cloud:
@@ -30,7 +27,6 @@ if is_cloud:
     os.environ["LANGCHAIN_API_KEY"] = langsmith_key
 else:
     load_environment()
-
 # 🧠 Backend toggle
 backend_options = ["OpenAI"]
 if not is_cloud:
