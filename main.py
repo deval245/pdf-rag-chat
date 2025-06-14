@@ -1,33 +1,23 @@
+from utils.env_loader import load_environment, safe_get_env
+load_environment()
+
 import os
 import streamlit as st
-from dotenv import load_dotenv
 from utils.pdf_loader import load_and_split_pdf
 from chains.pdf_qa_chain import build_pdf_qa_chain
-
-# Load environment variables (for local or Streamlit Cloud secrets)
-if "OPENAI_API_KEY" in st.secrets:
-    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
-    os.environ["LANGCHAIN_API_KEY"] = st.secrets["LANGCHAIN_API_KEY"]
-    os.environ["LANGCHAIN_PROJECT"] = st.secrets["LANGCHAIN_PROJECT"]
-    os.environ["LANGCHAIN_TRACING_V2"] = st.secrets["LANGCHAIN_TRACING_V2"]
-    os.environ["USE_UNSTRUCTURED"] = st.secrets.get("USE_UNSTRUCTURED", "false")
-    os.environ["STREAMLIT_ENV"] = st.secrets.get("STREAMLIT_ENV", "cloud")
-else:
-    load_dotenv()
 
 # Streamlit config
 st.set_page_config(page_title="Chat with Your PDF", layout="centered")
 st.title("📄 Chat with Your PDF (LangChain + LangSmith)")
 
-# Backend model selector
-backend = st.selectbox("🧠 Choose your LLM backend:", ["OpenAI", "Ollama"])
+# Backend toggle
+backend = st.selectbox("🧠 Choose backend:", ["OpenAI", "Ollama"])
 
 # Upload PDF
 uploaded_file = st.file_uploader("📤 Upload a PDF file", type=["pdf"])
 if uploaded_file:
     os.makedirs("data", exist_ok=True)
     file_path = os.path.join("data", uploaded_file.name)
-
     with open(file_path, "wb") as f:
         f.write(uploaded_file.read())
     st.success("✅ PDF uploaded and saved!")
@@ -35,7 +25,7 @@ if uploaded_file:
     with st.spinner("⏳ Processing and indexing PDF..."):
         chunks = load_and_split_pdf(file_path)
         st.write(f"✅ {len(chunks)} chunks after splitting and filtering")
-        qa_chain = build_pdf_qa_chain(chunks, backend)
+        qa_chain = build_pdf_qa_chain(chunks, backend=backend)
 
     question = st.text_input("❓ Ask a question from the PDF:")
     if question:

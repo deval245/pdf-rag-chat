@@ -8,3 +8,4 @@ streamlit
 PyMuPDF
 unstructured[all-docs]
 tiktoken
+sentence-transformers
