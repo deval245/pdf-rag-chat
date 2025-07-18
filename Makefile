@@ -25,5 +25,8 @@ pr-dev:
 # ✅ Create PR: dev → main (prompts for title/body)
 pr-main:
 	gh pr create --base main --head dev --web=false
-run:
-	KMP_DUPLICATE_LIB_OK=TRUE STREAMLIT_WATCHER_TYPE=poll streamlit run main.py
+#run:
+#	KMP_DUPLICATE_LIB_OK=TRUE STREAMLIT_WATCHER_TYPE=poll streamlit run main.py
+
+test:
+	pytest tests/

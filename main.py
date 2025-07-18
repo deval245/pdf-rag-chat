@@ -1,9 +1,10 @@
 import streamlit as st
 import os
 from datetime import datetime
-from utils.env_loader import load_environment, safe_get_env
+from utils.env_loader import load_environment
 from utils.pdf_loader import load_and_split_any_file
 from chains.pdf_qa_chain import build_pdf_qa_chain
+from utils.einstein_layer import run_einstein_checks, mask_sensitive_data
 
 # ✅ Must come first
 st.set_page_config(page_title="Chat with Your Document", layout="centered")
@@ -27,6 +28,7 @@ if is_cloud:
     os.environ["LANGCHAIN_API_KEY"] = langsmith_key
 else:
     load_environment()
+
 # 🧠 Backend toggle
 backend_options = ["OpenAI"]
 if not is_cloud:
@@ -34,12 +36,11 @@ if not is_cloud:
 backend = st.selectbox("🧠 Choose backend:", backend_options)
 
 # 🧾 UI
-st.title("📄 Chat with Your Document (LangChain + LangSmith)")
+st.title("(LangChain + LangSmith + Einstein Trust Layer)")
 
 # 📤 Document upload
 uploaded_file = st.file_uploader("📤 Upload a document", type=["pdf", "docx", "pptx", "txt", "jpg", "jpeg", "png"])
 if uploaded_file:
-    # Clear input on new upload
     if "last_uploaded" not in st.session_state or uploaded_file.name != st.session_state.last_uploaded:
         st.session_state.last_uploaded = uploaded_file.name
         st.session_state.pop("question", None)
@@ -60,11 +61,33 @@ if uploaded_file:
         with st.spinner("🧠 Thinking..."):
             try:
                 result = qa_chain.invoke({"query": question})
-                st.markdown(f"### ✅ **Answer:**\n{result['result']}")
-                st.markdown("### 📚 Source Chunks:")
-                for i, doc in enumerate(result['source_documents']):
-                    st.markdown(f"**Source {i+1}:**")
-                    st.code(doc.page_content[:300] + "...")
+                raw_answer = result["result"].strip()
+
+                # Check for empty or "I don't know"-like responses
+                if not raw_answer or "not enough information" in raw_answer.lower() or "i don't know" in raw_answer.lower():
+                    st.markdown("### ✅ **Answer (with PII masked):**\nNot enough information.")
+                    st.info("No sufficiently relevant source content to display.")
+                    st.stop()
+
+                # 🛡️ Run Einstein Layer checks
+                masked_text, validation_log = run_einstein_checks(raw_answer)
+
+                if validation_log["flagged"]:
+                    st.error(f"⚠️ Answer blocked due to policy violations: {validation_log['categories']}")
+                    st.stop()
+
+                # ✅ Show final masked answer
+                st.markdown(f"### ✅ **Answer (with PII masked):**\n{masked_text}")
+
+                # 📚 Show only if valid answer exists
+                st.markdown("### 📚 Source Chunks (PII masked):")
+                for i, doc in enumerate(result["source_documents"]):
+                    if not doc.page_content.strip():
+                        continue
+                    masked_source = mask_sensitive_data(doc.page_content)
+                    st.markdown(f"**Source {i + 1}:**")
+                    st.code(masked_source[:500] + "...")
+
             except Exception as e:
                 st.error(f"❌ Error during processing: {e}")
 
@@ -74,9 +97,10 @@ with st.sidebar:
     st.markdown("### 🔐 Data & Key Privacy")
     st.info(
         """
-        - Your API keys are used only in this session  
-        - No data is logged or saved  
-        - 100% open-source, zero-trust design  
+        - Your API keys are used only in this session
+        - No data is logged or saved on servers
+        - Compliance logs stored only internally for audit
+        - Zero-trust design inspired by NVIDIA and Salesforce
         """
     )
     st.markdown(f"🕒 Session started: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`")
